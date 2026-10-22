@@ -1,0 +1,14 @@
+node_modules/
+.env
+.DS_Store
+recordings/
+__pycache__/
+
+# SideQuest SDK docs: re-download with scripts/fetch-reference-docs.sh
+reference/
+
+# Derived from private event recordings
+docs/fmc4-part1-trajectories.svg
+
+# altspace.js per-machine state (bot guest identity)
+.altspace/

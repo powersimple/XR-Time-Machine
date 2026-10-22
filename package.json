@@ -1,0 +1,21 @@
+{
+  "name": "altspace-bots",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "check": "node --env-file-if-exists=.env bots/check.mjs",
+    "hello": "node --env-file-if-exists=.env bots/hello.mjs",
+    "record": "node --env-file-if-exists=.env recorder/record.mjs",
+    "record:mock": "node recorder/record.mjs --mock",
+    "verify:mock": "node recorder/verify.mjs",
+    "harness": "node test/harness.mjs",
+    "test": "node test/harness.mjs && node test/harness.mjs --realtime"
+  },
+  "dependencies": {
+    "@roamhq/wrtc": "^0.9.1",
+    "altspace.js": "https://greenfield-registry.sdq.st/altspace.js/-/altspace.js-0.1.2.tgz"
+  }
+}
