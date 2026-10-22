@@ -1,42 +1,46 @@
-# Altspace spatial recording
+# XR Time Machine
 
-The research and plan are in [PLAN.md](PLAN.md). Studio ideas are in [docs/studio-wishlist.md](docs/studio-wishlist.md), and ENGAGE format notes in [docs/myrec-format.md](docs/myrec-format.md).
+Record social VR sessions as data rather than video: every avatar's motion, every voice on its own track, and the events. Then replay them, edit them like footage with cameras placed after the fact, and hand the result to Premiere or Resolve. Open source.
 
-## Setup
+The research and roadmap are in [PLAN.md](PLAN.md), and the camera and audio wishlist for the editor is in [docs/studio-wishlist.md](docs/studio-wishlist.md).
 
-Node 22.12+, then `npm install`, then copy `.env.example` to `.env` and add your client id. `npm run check` confirms everything is in place.
+## Plugin architecture
 
-## Iterate offline against the mock room
+```
+core/                  Platform-agnostic, no dependencies
+  recorder.mjs         records any source to the recording format
+  source.mjs           the contract a platform plugin implements
+  clock.mjs            wall clock, or a virtual clock for instant deterministic runs
+  audio.mjs            PCM helpers and WAV writing
 
-[mock/](mock/) holds a fake altspace.js room client playing a scripted 10-second scene. Three people, Ava, Ben and Cy, stand at a campfire and take turns talking:
+Altspace/              Platform plugin: Altspace, through the altspace.js bot SDK
+  adapter.mjs          altspace.js room client → core source
+  record.mjs           CLI: record a live world, or the mock
+  mock/                offline stand-in for an Altspace room, playing a scripted scene
+  test/                golden harness: recorder output vs the scene, line by line
+  bots/                setup checks and a first bot
 
-- Cy joins a second late and walks a few steps towards the fire.
-- Ava and Ben laugh over each other at the end.
-- Listeners turn to face whoever is speaking.
+ENGAGE/                Platform plugin: ENGAGE (import only, for now)
+  tools/               .myrec decoder and inspector
+  docs/                format notes
 
-The mock uses the SDK's real types, rig and bone-pose codec, so the same recorder code runs on it and on a live room.
-
-```bash
-npm test                                  # golden harness, instant then real-time
-npm run harness                           # instant: record on a virtual clock, compare exactly
-npm run harness -- --realtime             # real time: 10 s on wall clock, timing-tolerant
-npm run harness -- --compare <dir>        # re-check an existing recording
+editors/               Video-editor plugins, which consume recordings
+  Premiere/
+  Resolve/
 ```
 
-The harness in [test/](test/) works out from the scene alone what a perfect recorder would write. It then compares the output line by line:
+The rules that keep it pluggable:
+- **`core/` never imports a platform SDK.** A platform plugin wraps its room API as a *source* ([core/source.mjs](core/source.mjs)), and core records any source the same way.
+- **Platform data passes through untouched.** Avatar appearance and bone encodings are stored with the source's name for them (`session.json` → `source.boneCodec`), so nothing is lost and core needs no knowledge of them.
+- **Each plugin owns its own dependencies,** in its own `package.json`. Core has none.
+- **Editors only read recordings.** They never talk to a platform.
 
-- Every `poses.jsonl` line must equal the scene at some moment within its publish window, to about 1 mm and 0.5°.
-- Every event must match a scripted join or speech turn.
-- Every voice stem must match the scene's audio sample for sample.
+Adding a platform means writing one adapter like [Altspace/adapter.mjs](Altspace/adapter.mjs). Adding an editor means reading the recording format.
 
-Each mismatch is listed by file and line in `harness-report.txt` in the recording folder. Real-time runs measure event-loop stalls and only excuse gaps that a measured stall explains.
-
-The scene is defined in [mock/scene.mjs](mock/scene.mjs). Change its characters, lines and movement to test other cases.
-
-## Live
+## Quick start
 
 ```bash
-npm run record -- altspacecampfire --seconds 30
+cd Altspace && npm install && npm test
 ```
 
-This joins as a guest recorder bot. Use it sparingly: the mock exists so we don't need to hit the real server while iterating. Recordings go to `recordings/`, which git ignores.
+This runs the golden harness against the mock Altspace room, offline. See [Altspace/README.md](Altspace/README.md) for live recording and setup.

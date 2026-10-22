@@ -1,0 +1,12 @@
+{
+  "name": "@xr-time-machine/core",
+  "private": true,
+  "type": "module",
+  "description": "Platform-agnostic recorder, clocks and audio helpers. No dependencies.",
+  "exports": {
+    "./recorder": "./recorder.mjs",
+    "./source": "./source.mjs",
+    "./clock": "./clock.mjs",
+    "./audio": "./audio.mjs"
+  }
+}

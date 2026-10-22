@@ -4,11 +4,11 @@ node_modules/
 recordings/
 __pycache__/
 
-# SideQuest SDK docs: re-download with scripts/fetch-reference-docs.sh
-reference/
+# SideQuest SDK docs: re-download with Altspace/scripts/fetch-reference-docs.sh
+Altspace/reference/
 
 # Derived from private event recordings
-docs/fmc4-part1-trajectories.svg
+ENGAGE/docs/fmc4-part1-trajectories.svg
 
 # altspace.js per-machine state (bot guest identity)
 .altspace/

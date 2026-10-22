@@ -1,14 +1,15 @@
-// Records a room as data: every peer's root transform and bone pose, and each voice as its own WAV.
-// Works the same on a live altspace.js room client and on the mock in ../mock/.
+// Records a session as data: every participant's root transform and body pose, and each voice as its own WAV.
+// Platform-agnostic: it reads from a source (see ./source.mjs), which a platform plugin such as Altspace provides.
 //
 // Output (a plain dev format until MCAP lands; see PLAN.md):
-//   session.json        roster, timing, rates
-//   poses.jsonl         one line per peer per sample: { t, peer, pos, rot, bones }  (bones = base64 bone-pose bytes)
-//   events.jsonl        peer joins/leaves and speaking start/stop
+//   session.json        source, roster, timing, rates
+//   poses.jsonl         one line per participant per sample: { t, peer, pos, rot, bones }  (bones = base64, source's codec)
+//   events.jsonl        joins/leaves and speaking start/stop
 //   voice-<peer>.wav    48 kHz mono 16-bit, aligned to recording start
 import { mkdirSync, writeFileSync, createWriteStream } from 'node:fs';
 import { join } from 'node:path';
-import { BONE_POSE_CODEC_ID, downmixFloat, floatToS16, resampleLinear, SAMPLE_RATE } from 'altspace.js';
+import { SAMPLE_RATE, downmix, floatToS16, resampleLinear, wavBytes } from './audio.mjs';
+import { assertSource } from './source.mjs';
 
 const POSE_HZ = 30;
 const SPEAKING_RMS = 0.01;
@@ -16,51 +17,50 @@ const RESYNC_SAMPLES = SAMPLE_RATE / 5; // 200 ms behind wall clock counts as a 
 // Long enough to bridge the gaps between syllables and words, so one turn isn't split into many.
 const SPEAKING_HOLD_MS = 400;
 
-export function startRecorder({ client, clock, outDir, label = 'recording' }) {
+export function startRecorder({ source, clock, outDir, label = 'recording' }) {
+  assertSource(source);
   mkdirSync(outDir, { recursive: true });
   const t0 = clock.now();
   const at = () => Math.round(clock.now() - t0);
   const poses = createWriteStream(join(outDir, 'poses.jsonl'));
   const events = createWriteStream(join(outDir, 'events.jsonl'));
-  const roster = new Map(); // peerId -> { displayName, userId, roomSessionId, userState, joinedMs, leftMs }
-  const voices = new Map(); // peerId -> { segments: [{ lead, chunks, samples }], speaking, lastLoudMs }
+  const roster = new Map(); // peer id -> { displayName, userId, profile, joinedMs, leftMs }
+  const voices = new Map(); // peer id -> { segments: [{ lead, chunks, samples }], speaking, lastLoudMs }
   let poseSamples = 0;
 
   const event = (type, data) => events.write(`${JSON.stringify({ t: at(), type, ...data })}\n`);
 
   function addPeer(p) {
-    if (p.isLocal || roster.has(p.peerId)) return;
-    roster.set(p.peerId, { displayName: p.displayName, userId: p.userId, roomSessionId: p.roomSessionId, userState: p.userState, joinedMs: at() });
-    event('peer_joined', { peer: p.peerId, name: p.displayName });
+    if (p.isLocal || roster.has(p.id)) return;
+    roster.set(p.id, { displayName: p.displayName, userId: p.userId, profile: p.profile, joinedMs: at() });
+    event('peer_joined', { peer: p.id, name: p.displayName });
   }
 
   const offs = [
-    client.on('peerJoined', addPeer),
-    client.on('peerLeft', (p) => {
-      const r = roster.get(p.peerId);
-      if (r && r.leftMs === undefined) { r.leftMs = at(); event('peer_left', { peer: p.peerId, name: p.displayName }); }
+    source.on('peerJoined', addPeer),
+    source.on('peerLeft', (p) => {
+      const r = roster.get(p.id);
+      if (r && r.leftMs === undefined) { r.leftMs = at(); event('peer_left', { peer: p.id, name: p.displayName }); }
     }),
   ];
-  for (const p of client.getPeers()) addPeer(p);
+  for (const p of source.peers()) addPeer(p);
 
   const stopPoses = clock.every(1000 / POSE_HZ, () => {
     const t = at();
-    for (const [peerId, r] of roster) {
-      if (r.leftMs !== undefined || !r.roomSessionId) continue;
-      const view = client.transforms.view({ kind: 'participant', roomSessionId: r.roomSessionId, transformKey: 'root' });
-      const pose = view?.sample(Number.MAX_SAFE_INTEGER, 0);
+    for (const [id, r] of roster) {
+      if (r.leftMs !== undefined) continue;
+      const pose = source.samplePose(id);
       if (!pose) continue;
-      const bones = view.extension?.(BONE_POSE_CODEC_ID);
-      poses.write(`${JSON.stringify({ t, peer: peerId, pos: pose.position, rot: pose.rotation, bones: bones ? Buffer.from(bones).toString('base64') : undefined })}\n`);
+      poses.write(`${JSON.stringify({ t, peer: id, pos: pose.position, rot: pose.rotation, bones: pose.bones ? Buffer.from(pose.bones).toString('base64') : undefined })}\n`);
       poseSamples++;
     }
   });
 
-  const stopVoice = client.voice.onRemotePcmFrame((frame) => {
+  const stopVoice = source.onVoiceFrame((frame) => {
     try {
       let v = voices.get(frame.peerId);
       if (!v) voices.set(frame.peerId, (v = { segments: [], speaking: false, lastLoudMs: -Infinity }));
-      let mono = downmixFloat(frame.samples, frame.channels);
+      let mono = downmix(frame.samples, frame.channels);
       if (frame.sampleRate !== SAMPLE_RATE) mono = resampleLinear(mono, frame.sampleRate, SAMPLE_RATE);
       const pcm = floatToS16(mono);
       // The audio's own sample count is its clock. Frames can arrive late but never early, so a run of
@@ -96,14 +96,15 @@ export function startRecorder({ client, clock, outDir, label = 'recording' }) {
     stopVoice();
     for (const off of offs) off();
     const durationMs = at();
-    for (const [peerId, v] of voices) {
-      if (v.speaking) event('speaking_stopped', { peer: peerId, endedMs: v.lastLoudMs });
-      writeWav(join(outDir, `voice-${peerId}.wav`), stem(v.segments));
+    for (const [id, v] of voices) {
+      if (v.speaking) event('speaking_stopped', { peer: id, endedMs: v.lastLoudMs });
+      writeFileSync(join(outDir, `voice-${id}.wav`), wavBytes(stem(v.segments)));
     }
     await Promise.all([poses, events].map((s) => new Promise((resolve) => s.end(resolve))));
     const session = {
-      format: 'altspace-spatial-recording-dev', version: 0, label, recordedAt: new Date().toISOString(),
-      // Where time 0 of this recording falls on the room clock it was recorded against.
+      format: 'xr-time-machine-dev', version: 0, label, recordedAt: new Date().toISOString(),
+      source: { platform: source.platform, boneCodec: source.boneCodec ?? null },
+      // Where time 0 of this recording falls on the clock it was recorded against.
       startClockMs: t0,
       clock: clock.kind ?? 'wall', // 'virtual' means a deterministic mock run, so timing can be checked exactly
       durationMs, poseHz: POSE_HZ, voiceSampleRate: SAMPLE_RATE, poseSamples,
@@ -129,14 +130,4 @@ function stem(segments) {
     cursor = start + audio.length;
   }
   return parts;
-}
-
-function writeWav(path, chunks) {
-  const samples = chunks.reduce((n, c) => n + c.length, 0);
-  const header = Buffer.alloc(44);
-  header.write('RIFF', 0); header.writeUInt32LE(36 + samples * 2, 4); header.write('WAVE', 8);
-  header.write('fmt ', 12); header.writeUInt32LE(16, 16); header.writeUInt16LE(1, 20); header.writeUInt16LE(1, 22);
-  header.writeUInt32LE(SAMPLE_RATE, 24); header.writeUInt32LE(SAMPLE_RATE * 2, 28); header.writeUInt16LE(2, 32); header.writeUInt16LE(16, 34);
-  header.write('data', 36); header.writeUInt32LE(samples * 2, 40);
-  writeFileSync(path, Buffer.concat([header, ...chunks.map((c) => Buffer.from(c.buffer, c.byteOffset, c.byteLength))]));
 }

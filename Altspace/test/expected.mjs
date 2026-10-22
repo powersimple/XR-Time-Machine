@@ -1,5 +1,5 @@
 // What a perfect recorder would write for the mock scene, worked out from mock/scene.mjs alone.
-import { floatToS16 } from 'altspace.js';
+import { floatToS16 } from '../../core/audio.mjs';
 import { CHARACTERS, LINES, SCENE_DURATION_MS, VOICE_SAMPLE_RATE, bonePoseAt, rootAt, voiceFrame, voicedExtent } from '../mock/scene.mjs';
 
 export const POSE_HZ = 30;

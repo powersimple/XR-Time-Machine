@@ -2,7 +2,7 @@
 
 Usage: python3 -I tools/myrec/inspect_myrec.py <file.myrec> [--stream N] [--trajectory out.svg]
 
-Layout (see docs/myrec-format.md):
+Layout (see ../docs/myrec-format.md):
   outer zip: count.txt, master, stream0..N-1, [streamvideo0..N-1]
   each master/streamN entry is itself a zip holding one or more files:
     master.txt       JSON manifest (roster, timing, scene id)

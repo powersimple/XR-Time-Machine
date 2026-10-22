@@ -1,0 +1,21 @@
+{
+  "name": "@xr-time-machine/altspace",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "check": "node --env-file-if-exists=.env bots/check.mjs",
+    "hello": "node --env-file-if-exists=.env bots/hello.mjs",
+    "record": "node --env-file-if-exists=.env record.mjs",
+    "record:mock": "node record.mjs --mock",
+    "harness": "node test/harness.mjs",
+    "test": "node test/harness.mjs && node test/harness.mjs --realtime"
+  },
+  "dependencies": {
+    "@roamhq/wrtc": "^0.9.1",
+    "altspace.js": "https://greenfield-registry.sdq.st/altspace.js/-/altspace.js-0.1.2.tgz"
+  },
+  "description": "XR Time Machine platform plugin for Altspace (altspace.js)"
+}

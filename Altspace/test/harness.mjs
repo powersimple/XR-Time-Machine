@@ -8,9 +8,10 @@ import { monitorEventLoopDelay } from 'node:perf_hooks';
 import { join } from 'node:path';
 import { decodeBonePose, BONE_NAMES } from 'altspace.js';
 import { createMockRoomClient } from '../mock/mock-room.mjs';
-import { virtualClock, wallClock } from '../mock/clock.mjs';
+import { virtualClock, wallClock } from '../../core/clock.mjs';
 import { SCENE_DURATION_MS, VOICE_SAMPLE_RATE } from '../mock/scene.mjs';
-import { startRecorder } from '../recorder/recorder.mjs';
+import { startRecorder } from '../../core/recorder.mjs';
+import { altspaceSource } from '../adapter.mjs';
 import { expectedEvents, expectedPoseLines, expectedVoice, truthAt } from './expected.mjs';
 
 const TOL = {
@@ -73,7 +74,7 @@ async function record() {
   const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   const outDir = join('recordings', `harness-${realtime ? 'realtime' : 'instant'}-${stamp}`);
   await client.joinRoom({ roomId: 'mock-campfire' });
-  const recorder = startRecorder({ client, clock, outDir, label: 'harness' });
+  const recorder = startRecorder({ source: altspaceSource(client), clock, outDir, label: 'harness' });
   // Measure event-loop stalls during the run: the OS can pause the process for 100 ms or more, and a gap
   // or a stale value is only excused when a measured stall explains it.
   const loop = monitorEventLoopDelay({ resolution: 5 });

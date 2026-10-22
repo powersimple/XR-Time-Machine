@@ -2,7 +2,7 @@
 // It implements the parts of the RoomClient API a recorder uses, with the same shapes:
 //   on(event, fn) -> off, joinRoom(), getPeers(), getPeer(), transforms.view(target).sample()/.extension(),
 //   voice.onRemotePcmFrame(), leaveRoom(), disconnect()  (so altspace.js's own hardLeave() works on it)
-// Time comes from a clock (see ./clock.mjs): virtual for instant runs, or wall-clock for real-time playback.
+// Time comes from a clock (see ../../core/clock.mjs): virtual for instant runs, or wall-clock for real-time playback.
 import { BONE_POSE_CODEC_ID, encodeBonePose, guestAvatarTriple } from 'altspace.js';
 import {
   CHARACTERS, SCENE_DURATION_MS, VOICE_SAMPLE_RATE, bonePoseAt, isPresent, rootAt, voiceFrame,

@@ -10,14 +10,14 @@ Record an Altspace session as **data, not video**: every avatar's motion, every 
 
 ### 1. ENGAGE's `.myrec` is readable. We can parse it today.
 
-It's ZIPs inside a ZIP, holding JSON, LZ4-compressed MessagePack, MP3 and H.264. It is not obfuscated or encrypted. Our decoder ([tools/myrec/](tools/myrec/)) has decoded:
+It's ZIPs inside a ZIP, holding JSON, LZ4-compressed MessagePack, MP3 and H.264. It is not obfuscated or encrypted. Our decoder ([ENGAGE/tools/](ENGAGE/tools/)) has decoded:
 - the participant roster
 - 30 fps root positions
 - 50-bone full-body poses as float16
 - head and hand trackers
 - scene objects, events and in-world screen video
 
-Details are in [docs/myrec-format.md](docs/myrec-format.md). The motion trajectories of all 17 avatars in FMC4-Part1 were extracted successfully.
+Details are in [ENGAGE/docs/myrec-format.md](ENGAGE/docs/myrec-format.md). The motion trajectories of all 17 avatars in FMC4-Part1 were extracted successfully.
 
 What this tells us about ENGAGE's design:
 - **Good ideas to keep:** self-contained ~5 s chunks, which are crash-tolerant and cut-friendly; full poses every 3rd frame; compact float16 bones.

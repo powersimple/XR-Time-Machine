@@ -3,8 +3,9 @@
 //   npm run record:mock -- --realtime           the same scene in real time (10 s of wall clock)
 //   npm run record -- <world> [--seconds 30]    a live Altspace world, as a guest recorder bot
 import { join } from 'node:path';
-import { startRecorder } from './recorder.mjs';
-import { virtualClock, wallClock } from '../mock/clock.mjs';
+import { startRecorder } from '../core/recorder.mjs';
+import { virtualClock, wallClock } from '../core/clock.mjs';
+import { altspaceSource } from './adapter.mjs';
 
 const args = process.argv.slice(2);
 const flag = (name) => args.includes(`--${name}`);
@@ -12,12 +13,12 @@ const option = (name, fallback) => (args.includes(`--${name}`) ? args[args.index
 const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 
 if (flag('mock')) {
-  const { createMockRoomClient } = await import('../mock/mock-room.mjs');
+  const { createMockRoomClient } = await import('./mock/mock-room.mjs');
   const clock = flag('realtime') ? wallClock() : virtualClock();
   const { client, durationMs } = createMockRoomClient({ clock, displayName: 'Recorder' });
   const outDir = option('out', join('recordings', `mock-campfire-${stamp}`));
   await client.joinRoom({ roomId: 'mock-campfire' });
-  const recorder = startRecorder({ client, clock, outDir, label: 'mock campfire scene' });
+  const recorder = startRecorder({ source: altspaceSource(client), clock, outDir, label: 'mock campfire scene' });
   await clock.runFor(durationMs);
   // Stop recording before leaving, or the recorder logs everyone "leaving" as the bot disconnects.
   const session = await recorder.stop();
@@ -42,7 +43,7 @@ if (flag('mock')) {
     if ('error' in world) throw new Error(world.error);
     await client.joinRoom({ roomId: world.roomId, requestedInstance: world.instance });
     const outDir = option('out', join('recordings', `${world.slug ?? 'world'}-${stamp}`));
-    const recorder = startRecorder({ client, clock, outDir, label: world.slug ?? world.roomId });
+    const recorder = startRecorder({ source: altspaceSource(client), clock, outDir, label: world.slug ?? world.roomId });
     console.log(`Recording ${world.slug ?? world.roomId} for ${seconds}s…`);
     await clock.runFor(seconds * 1000);
     report(await recorder.stop(), outDir);
