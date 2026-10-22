@@ -2,6 +2,8 @@
 
 Draft 1, 2026-10-21, for Ben Erwin and Shane Harris (Altspace / SideQuest)
 
+> **Status, 22 Oct 2026.** Phase 0 is built and tested against the mock, along with an early slice of Phases 3 and 4. The recorder is hardened across 8 scenarios. The studio export renders cameras, an auto-directed program, mixes and Premiere/OTIO timelines. A Premiere UXP panel is built. See [HANDOFF.md](HANDOFF.md).
+
 ## The vision in one line
 
 Record an Altspace session as **data, not video**: every avatar's motion, every voice on its own track, objects, media and events. Anyone can then replay it in-world, or edit it like footage, with cameras placed *after* the fact and output to Premiere and Resolve. The format and tools are open source.

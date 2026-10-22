@@ -11,7 +11,11 @@
     "record": "node --env-file-if-exists=.env record.mjs",
     "record:mock": "node record.mjs --mock",
     "harness": "node test/harness.mjs",
-    "test": "node test/harness.mjs && node test/harness.mjs --realtime"
+    "test": "node test/harness.mjs && node test/harness.mjs --scenario campfire,network --realtime && node test/harness.mjs --crash",
+    "test:full": "node test/harness.mjs --long && node test/harness.mjs --realtime && node test/harness.mjs --crash",
+    "recover": "node ../core/recover.mjs",
+    "studio": "node studio.mjs",
+    "test:studio": "node test/studio.test.mjs"
   },
   "dependencies": {
     "@roamhq/wrtc": "^0.9.1",

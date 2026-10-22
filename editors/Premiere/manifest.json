@@ -1,0 +1,32 @@
+{
+  "id": "org.xrtimemachine.premiere",
+  "name": "XR Time Machine",
+  "version": "0.1.0",
+  "main": "index.html",
+  "manifestVersion": 5,
+  "host": {
+    "app": "premierepro",
+    "minVersion": "25.6.0"
+  },
+  "requiredPermissions": {
+    "localFileSystem": "request",
+    "clipboard": "readAndWrite"
+  },
+  "entrypoints": [
+    {
+      "type": "panel",
+      "id": "xrtm-panel",
+      "label": { "default": "XR Time Machine" },
+      "minimumSize": { "width": 280, "height": 360 },
+      "maximumSize": { "width": 2000, "height": 3000 },
+      "preferredDockedSize": { "width": 340, "height": 640 },
+      "preferredFloatingSize": { "width": 380, "height": 720 },
+      "icons": [
+        { "width": 23, "height": 23, "path": "icons/panel.png", "scale": [1, 2], "theme": ["all"] }
+      ]
+    }
+  ],
+  "icons": [
+    { "width": 48, "height": 48, "path": "icons/plugin.png", "scale": [1, 2], "theme": ["all"], "species": ["pluginList"] }
+  ]
+}

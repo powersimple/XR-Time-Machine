@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      margin: 0; padding: 10px 12px 16px;
+      color: var(--uxp-host-text-color, #e6e6e6);
+      background: var(--uxp-host-background-color, #232323);
+      font-size: var(--uxp-host-font-size, 12px);
+      font-family: var(--uxp-host-font-family, sans-serif);
+    }
+    h1 { font-size: 14px; margin: 0 0 2px; }
+    h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--uxp-host-text-color-secondary, #9a9a9a); margin: 14px 0 6px; }
+    .muted { color: var(--uxp-host-text-color-secondary, #9a9a9a); }
+    .row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin: 4px 0; }
+    .grow { flex: 1; min-width: 0; }
+    button {
+      padding: 4px 10px; border-radius: 4px; border: 1px solid var(--uxp-host-border-color, #4a4a4a);
+      background: var(--uxp-host-widget-hover-background-color, #333); color: inherit; font-size: inherit; cursor: pointer;
+    }
+    button.primary { background: #2680eb; border-color: #2680eb; color: #fff; }
+    button:disabled { opacity: 0.45; cursor: default; }
+    .path { word-break: break-all; font-size: 11px; }
+    .cams { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; }
+    .cams button { text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #turns { max-height: 220px; overflow-y: auto; border: 1px solid var(--uxp-host-border-color, #4a4a4a); border-radius: 4px; }
+    .turn { display: flex; gap: 8px; padding: 4px 8px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .turn:hover { background: rgba(255,255,255,0.06); }
+    .tc { font-family: monospace; color: var(--uxp-host-text-color-secondary, #9a9a9a); }
+    .dot { width: 8px; height: 8px; border-radius: 4px; margin-top: 4px; flex: none; }
+    select { font-size: inherit; }
+    .person { display: flex; align-items: center; gap: 8px; margin: 3px 0; }
+    .person span { flex: 1; }
+    code { display: block; font-size: 10px; padding: 6px; background: rgba(0,0,0,0.3); border-radius: 4px; word-break: break-all; }
+    #log { font-family: monospace; font-size: 10px; white-space: pre-wrap; max-height: 120px; overflow-y: auto; color: var(--uxp-host-text-color-secondary, #9a9a9a); }
+    .ok { color: #4ac26b; } .bad { color: #ff6b6b; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <h1>XR Time Machine</h1>
+  <div class="muted">Edit spatial recordings like multicam footage.</div>
+
+  <h2>Recording</h2>
+  <div class="row">
+    <button id="open" class="primary">Open recording folder…</button>
+    <button id="reload" disabled>Reload</button>
+  </div>
+  <div id="folder" class="path muted">No recording open. Choose a recording folder that has been exported with <b>npm run studio</b>.</div>
+  <div id="summary" class="muted"></div>
+
+  <div id="ready" class="hidden">
+    <h2>Timeline</h2>
+    <div class="row"><button id="import" class="primary">Import timeline into project</button></div>
+    <div class="muted">Adds a sequence with the auto-directed program on V1, every camera on V2 and up (disabled), the program mixes and one voice track per person, with a marker for every speech turn.</div>
+
+    <h2>Switch angle at playhead</h2>
+    <div class="muted">Replaces the program clip under the playhead (V1) with the same moment from another camera. Undo works as usual.</div>
+    <div id="cams" class="cams"></div>
+
+    <h2>Speech</h2>
+    <div class="row">
+      <select id="who" class="grow"><option value="">Everyone</option></select>
+    </div>
+    <div id="turns"></div>
+
+    <h2>Audio per person</h2>
+    <div class="muted">Mic'd: dry, like a lavalier. Spatial: placed where they stand, heard from the program camera.</div>
+    <div id="people"></div>
+
+    <h2>Send edits back</h2>
+    <div class="row">
+      <button id="readcut">Use this sequence's cut</button>
+      <button id="saveaudio">Save audio modes</button>
+    </div>
+    <div class="muted">Writes your V1 cut and audio choices into the studio project. Re-export to render the program and mixes to match:</div>
+    <code id="cmd"></code>
+    <div class="row"><button id="copy">Copy command</button></div>
+  </div>
+
+  <h2>Log</h2>
+  <div id="log"></div>
+
+  <script src="main.js"></script>
+</body>
+</html>

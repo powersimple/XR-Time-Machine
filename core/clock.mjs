@@ -17,10 +17,14 @@ export function wallClock() {
   };
 }
 
-export function virtualClock() {
+// `stalls` simulates the process freezing (GC, the OS): [{ atMs, durationMs }]. Timers due during a stall all
+// fire once when it ends, then carry on from there, as Node's own timers do.
+export function virtualClock({ stalls = [] } = {}) {
   let now = 0;
   let nextId = 0;
   const timers = new Map();
+  const pending = [...stalls].sort((a, b) => a.atMs - b.atMs);
+  let fired = 0;
   return {
     kind: 'virtual',
     now: () => now,
@@ -35,11 +39,19 @@ export function virtualClock() {
         let due;
         for (const t of timers.values()) if (!due || t.next < due.next) due = t;
         if (!due || due.next > end) break;
+        if (pending.length && pending[0].atMs <= due.next) {
+          const stall = pending.shift();
+          now = stall.atMs + stall.durationMs;
+          for (const t of timers.values()) if (t.next < now) t.next = now;
+          continue;
+        }
         now = due.next;
         due.next += due.period;
         due.fn();
-        // Let promise callbacks scheduled by a timer run before the next one fires.
+        // Let promise callbacks scheduled by a timer run before the next one fires, and every so often let
+        // Node do real I/O, as it would between ticks in real time; otherwise file writes queue up in memory.
         await Promise.resolve();
+        if (++fired % 200 === 0) await new Promise((resolve) => setImmediate(resolve));
       }
       now = end;
     },

@@ -1,0 +1,21 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "csp-demo",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "CSP/demo/server.mjs"
+      ],
+      "port": 5174
+    },
+    {
+      "name": "premiere-panel-preview",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "editors/Premiere/test/preview-server.mjs"
+      ],
+      "port": 5180
+    }
+  ]
+}

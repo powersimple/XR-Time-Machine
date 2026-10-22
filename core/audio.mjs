@@ -40,10 +40,15 @@ export function floatToS16(samples) {
 // Mono 16-bit WAV from a list of Int16Array chunks.
 export function wavBytes(chunks, sampleRate = SAMPLE_RATE) {
   const samples = chunks.reduce((n, c) => n + c.length, 0);
+  return Buffer.concat([wavHeader(samples, sampleRate), ...chunks.map((c) => Buffer.from(c.buffer, c.byteOffset, c.byteLength))]);
+}
+
+// The 44-byte header of a mono 16-bit PCM WAV holding `samples` samples.
+export function wavHeader(samples, sampleRate = SAMPLE_RATE) {
   const header = Buffer.alloc(44);
   header.write('RIFF', 0); header.writeUInt32LE(36 + samples * 2, 4); header.write('WAVE', 8);
   header.write('fmt ', 12); header.writeUInt32LE(16, 16); header.writeUInt16LE(1, 20); header.writeUInt16LE(1, 22);
   header.writeUInt32LE(sampleRate, 24); header.writeUInt32LE(sampleRate * 2, 28); header.writeUInt16LE(2, 32); header.writeUInt16LE(16, 34);
   header.write('data', 36); header.writeUInt32LE(samples * 2, 40);
-  return Buffer.concat([header, ...chunks.map((c) => Buffer.from(c.buffer, c.byteOffset, c.byteLength))]);
+  return header;
 }

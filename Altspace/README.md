@@ -1,43 +1,51 @@
 # Altspace plugin
 
-Records Altspace worlds through the altspace.js bot SDK. [adapter.mjs](adapter.mjs) turns a room client, live or mock, into a [core source](../core/source.mjs). The core recorder does the rest.
+Records Altspace worlds through the altspace.js bot SDK, and exports them for editing. [adapter.mjs](adapter.mjs) turns a room client, live or mock, into a [core source](../core/source.mjs). [codec.mjs](codec.mjs) turns recorded Altspace bone poses into skeletons for the studio.
 
 ## Setup
 
 Node 22.12+, then `npm install`, then copy `.env.example` to `.env` and add your client id. `npm run check` confirms everything is in place. `scripts/fetch-reference-docs.sh` downloads the Altspace SDK docs into `reference/` (git ignores them, since they're SideQuest's).
 
-## Iterate offline against the mock room
-
-[mock/](mock/) holds a fake altspace.js room client playing a scripted 10-second scene. Three people, Ava, Ben and Cy, stand at a campfire and take turns talking:
-
-- Cy joins a second late and walks a few steps towards the fire.
-- Ava and Ben laugh over each other at the end.
-- Listeners turn to face whoever is speaking.
-
-The mock uses the SDK's real types, rig and bone-pose codec, so the same adapter and recorder run on it and on a live room.
+## Commands
 
 ```bash
-npm test                                  # golden harness, instant then real-time
-npm run harness                           # instant: record on a virtual clock, compare exactly
-npm run harness -- --realtime             # real time: 10 s on wall clock, timing-tolerant
-npm run harness -- --compare <dir>        # re-check an existing recording
-npm run record:mock                       # just record the mock scene
+npm test                                   # everything that's quick: all scenarios instantly, two in real time, a crash
+npm run test:full                          # plus the 10-minute scenario and every scenario in real time (~9 min)
+npm run test:studio                        # record, export 4 s of studio media, check every file (~10 s)
+
+npm run record:mock -- --scenario crowd    # record a mock scenario into recordings/
+npm run record -- altspacecampfire         # record a live world as a guest bot (--seconds 0: until Ctrl-C)
+npm run studio -- recordings/<folder>      # cameras, program cut, mixes and Premiere/OTIO timelines → <folder>/studio/
+npm run recover -- recordings/<folder>     # repair a recording whose recorder died (crash, kill, power cut)
 ```
 
-The harness in [test/](test/) works out from the scene alone what a perfect recorder would write. It then compares the output line by line:
+## The mock room and its scenarios
 
-- Every `poses.jsonl` line must equal the scene at some moment within its publish window, to about 1 mm and 0.5°.
-- Every event must match a scripted join or speech turn.
-- Every voice stem must match the scene's audio sample for sample.
+[mock/mock-room.mjs](mock/mock-room.mjs) is a fake altspace.js room client. It uses the SDK's real types, rig and bone-pose codec, so the same adapter and recorder run on it and on a live room. It plays a **scenario** from [mock/scenarios/index.mjs](mock/scenarios/index.mjs), each aimed at a way recording can go wrong:
 
-Each mismatch is listed by file and line in `harness-report.txt` in the recording folder. Real-time runs measure event-loop stalls and only excuse gaps that a measured stall explains.
+| Scenario | What it tests |
+|---|---|
+| `campfire` | Three people take turns, one joins late and walks, two laugh over each other |
+| `crowd` | Ten people arrive over 5 s, three leave early, three-way crosstalk, wandering |
+| `reconnect` | One person drops for 1 s and reconnects as the same peer; another leaves and returns as a new peer |
+| `mutes` | Mutes of 80, 150 and 250 ms mid-sentence, a 2 s mute, someone muted throughout, a mute ending mid-syllable |
+| `network` | Voice delivery stalls (400 and 150 ms) then bursts, a frozen transform, a 150 ms process stall, a peer at 10 Hz |
+| `bones` | One peer never sends bone poses; another starts 2 s after joining |
+| `edge` | A 20 ms blink in and out, a non-ASCII name, someone leaving at 0.5 s, an empty room at the end |
+| `chaos` | Everything at once, seeded: 16 people over 45 s, churn, both kinds of reconnect, random mutes, 30% overlapping speech, three stalls, two freezes, low-rate and boneless peers |
+| `long` | Four people, ten minutes, procedurally scripted (memory, disk, speed) |
 
-The scene is defined in [mock/scene.mjs](mock/scene.mjs). Change its characters, lines and movement to test other cases.
+A scenario is plain data: people, sessions, walks, mutes, bones, lines and faults. Its format is documented at the top of [mock/scenario.mjs](mock/scenario.mjs).
 
-## Live
+## The golden harness
 
-```bash
-npm run record -- altspacecampfire --seconds 30
-```
+[test/harness.mjs](test/harness.mjs) works out from a scenario alone what a perfect recorder would write ([test/expected.mjs](test/expected.mjs)). It then compares the recorder's output line by line and sample by sample:
 
-This joins as a guest recorder bot. Use it sparingly: the mock exists so we don't need to hit the real server while iterating. Recordings go to `recordings/`, which git ignores.
+- **Poses:** every `poses.jsonl` line must equal the scene at some moment within its publish window, to quantization level (≤ 1 mm, ≤ 0.5°). Instant runs must also hit the exact sample schedule; real-time runs must have no hole that a measured event-loop stall doesn't explain.
+- **Events:** every join, leave, rejoin and speech turn, to within 40/50 ms.
+- **Voices:** every 10 ms frame of every stem must match the source sample for sample, and every muted or absent stretch must be silent. Real-time runs allow each run of audio ±5 ms placement, and report it; it's about 1–2 ms in practice.
+- **Session file:** roster, names, sessions, durations and status.
+
+Every mismatch goes into `harness-report.txt` in the recording folder, by file and line. To prove the harness catches real bugs, five deliberate recorder bugs were each run against it, and each failed the run: no gap detection, mute not ending speech, the old reconnect bug, no look-ahead, and a leave always treated as a gap.
+
+`--crash` runs a real-time recording in a child process, kills it with SIGKILL at 6 s, recovers it with `core/recover.mjs`, and checks what survived. Everything up to the last ~0.3 s does.

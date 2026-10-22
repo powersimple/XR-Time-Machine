@@ -1,0 +1,10 @@
+{
+  "name": "@xr-time-machine/premiere",
+  "private": true,
+  "type": "commonjs",
+  "description": "XR Time Machine panel for Adobe Premiere (UXP). Load manifest.json with UXP Developer Tools, or install the .ccx.",
+  "scripts": {
+    "test": "node test/lib.test.js",
+    "package": "node scripts/package.js"
+  }
+}
