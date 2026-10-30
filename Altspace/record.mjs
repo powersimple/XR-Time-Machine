@@ -2,6 +2,8 @@
 //   npm run record:mock -- [--scenario crowd]  a scripted mock scene (default campfire), instantly, no network
 //   npm run record:mock -- --realtime           the same scene in real time (10 s of wall clock)
 //   npm run record -- <world> [--seconds 30]    a live Altspace world, as a guest recorder bot (--seconds 0: until Ctrl-C)
+//   npm run record -- <world> --follow           follow the world's XR Time Machine panel: record while it records
+import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { startRecorder } from '../core/recorder.mjs';
 import { virtualClock, wallClock } from '../core/clock.mjs';
@@ -62,6 +64,35 @@ if (flag('mock')) {
     await hardLeave(client);
     altspace.dispose();
     process.exit(1);
+  }
+  if (flag('follow')) {
+    // Layer 2 of the world-script prototype: record full bodies and voices whenever the world's recorder panel
+    // is recording (protected room state "xrtm.rec"), into <out-root>/<recording id>.bot/.
+    const outRoot = option('out-root', join(homedir(), 'Documents', 'AltspaceVR', 'XRTimeMachine'));
+    const current = () => {
+      const raw = client.getRoomState().values['xrtm.rec'];
+      try { return raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) : null; } catch { return null; }
+    };
+    let following = null;
+    const sync = async () => {
+      const rec = current();
+      if (rec?.id && following?.id !== rec.id) {
+        if (following) report(await following.recorder.stop(), following.outDir);
+        const outDir = join(outRoot, `${rec.id.replace(/[^A-Za-z0-9_-]/g, '')}.bot`);
+        following = { id: rec.id, outDir, recorder: startRecorder({ source: altspaceSource(client), clock, outDir, label: rec.id }) };
+        recorder = Object.assign(following.recorder, { outDir });
+        console.log(`Recording ${rec.id} (started by ${rec.by}) → ${outDir}`);
+      } else if (!rec && following) {
+        report(await following.recorder.stop(), following.outDir);
+        following = null;
+        recorder = undefined;
+      }
+    };
+    client.on('roomStateChanged', () => sync().catch((e) => console.warn('follow:', e.message)));
+    client.on('roomStateSnapshot', () => sync().catch((e) => console.warn('follow:', e.message)));
+    await sync();
+    console.log(`Following the recorder panel in ${world.slug ?? world.roomId}; recordings go to ${outRoot} (Ctrl-C to quit)…`);
+    await new Promise(() => {}); // the SIGINT handler finishes up
   }
   const outDir = option('out', join('recordings', `${world.slug ?? 'world'}-${stamp}`));
   recorder = startRecorder({ source: altspaceSource(client), clock, outDir, label: world.slug ?? world.roomId });

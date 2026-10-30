@@ -12,3 +12,6 @@ ENGAGE/docs/fmc4-part1-trajectories.svg
 
 # altspace.js per-machine state (bot guest identity)
 .altspace/
+
+# Local-only notes that may contain credentials
+*.local.md
